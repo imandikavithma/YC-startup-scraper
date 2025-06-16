@@ -1,0 +1,26 @@
+import pandas as pd
+
+data = [
+    {"Company Name": "DoorDash",
+     "Batch": "Summer 2013",
+     "Description": "Founded in 2013, DoorDash is a San Francisco-based technology company passionate about transforming local businesses and dedicated to enabling new ways of working, earning, and living. Today, DoorDash connects customers with their favorite local and national restaurants in more than 600 cities across the United States and Canada. By building intelligent, last-mile delivery technology for local cities, DoorDash aims to connect people with the things they care about — one dash at a time.",
+     "Founders": "Andy Fang, Stanley Tang, Tony Xu",
+     "LinkedIn URLs": "https://www.linkedin.com/company/doordash/",
+     "Company URLs": "http://doordash.com/"
+     },
+    {"Company Name": "Airbnb",
+     "Batch": "Winter 2009",
+     "Description": "Founded in August of 2008 and based in San Francisco, California, Airbnb is a trusted community marketplace for people to list, discover, and book unique accommodations around the world — online or from a mobile phone. Whether an apartment for a night, a castle for a week, or a villa for a month, Airbnb connects people to unique travel experiences, at any price point, in more than 33,000 cities and 192 countries. And with world-class customer service and a growing community of users, Airbnb is the easiest way for people to monetize their extra space and showcase it to an audience of millions. No global movement springs from individuals. It takes an entire team united behind something big. Together, we work hard, we laugh a lot, we brainstorm nonstop, we use hundreds of Post-Its a week, and we give the best high-fives in town. Headquartered in San Francisco, we have satellite offices in Dublin, London, Barcelona, Paris, Milan, Copenhagen, Berlin, Moscow, São Paolo, Sydney, and Singapore.Active Founders",
+     "Founders": "Nathan Blecharczyk, Joe Gebbia, Brian Chesky",
+     "LinkedIn URLs": "https://www.linkedin.com/company/airbnb/",
+     "Company URLs": "http://airbnb.com/"
+     },
+]
+
+# Convert list to DataFrame
+df = pd.DataFrame(data)
+
+# Save DataFrame to CSV
+df.to_csv('startups_data.csv', index=False) 
+
+print("CSV file created successfully!")
