@@ -108,7 +108,7 @@ def get_company_data(link):
         }
 
     except Exception as e:
-        print(f"❌ Error scraping {link}: {e}")
+        print(f"Error scraping {link}: {e}")
         return {}
 
 def main():
