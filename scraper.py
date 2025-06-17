@@ -6,16 +6,15 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 import time
 
-COMPANIES_DIR ="https://www.ycombinator.com/companies/"
+BASE_URL = "https://www.ycombinator.com"
+DIRECTORY_URL = BASE_URL + "/companies"
 
 headers = {
     "User-Agent": "Mozilla/5.0"
 }
 
 
-def get_company_links():
-    """Uses Selenium to scrape first 100 company links from Y Combinator"""
-    company_links = []
+def get_company_links_selenium():
 
     options = Options()
     options.add_argument("--headless")  # Run in background
@@ -23,39 +22,44 @@ def get_company_links():
     options.add_argument("--disable-dev-shm-usage")
 
     driver = webdriver.Chrome(options=options)
-    driver.get("https://www.ycombinator.com/companies")
+    driver.get(DIRECTORY_URL)
+    SCROLL_PAUSE = 2
+    last_height = 0
+    company_links = set()
 
-    time.sleep(5)  # Wait for JavaScript to load
-    
-    # Find all <a> tags linking to company profiles
-    anchors = driver.find_elements(By.CSS_SELECTOR, "a[href^='/companies/']") 
+    while len(company_links) < 500:
+       # Scroll to bottom
+        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        time.sleep(SCROLL_PAUSE)
 
-    
-    for a in anchors:
-        href = a.get_attribute("href")
-      
-        if href and href not in company_links:
-            company_links.append(href)
-        if len(company_links) >= 100:
+        # Find anchors with href starting with /companies/
+        anchors = driver.find_elements(By.CSS_SELECTOR, "a[href^='/companies/']")
+        for a in anchors:
+            href = a.get_attribute("href")
+            if href:
+                full_link = BASE_URL + href if href.startswith("/companies/") else href
+                company_links.add(full_link)
+
+        new_height = driver.execute_script("return document.body.scrollHeight")
+        if new_height == last_height:
             break
-
-        
+        last_height = new_height
     driver.quit()
-    print(f"✅ Collected {len(company_links)} company links.")
-    return company_links
+    
+    print(f"Collected {len(company_links)} company links")
 
+    return list(company_links)[:500] 
+   
 
 
 def get_company_data(link):
     import re
-    from bs4 import BeautifulSoup
     
     try:
-        print(f"🔍 Scraping: {link}")
+        
         res = requests.get(link, headers=headers)
 
         if res.status_code != 200:
-            print(f"❌ Failed to fetch page. Status code: {res.status_code}")
             return {}
 
         soup = BeautifulSoup(res.text, "html.parser")
@@ -109,12 +113,17 @@ def get_company_data(link):
 
 def main():
     #Get all company links
-    company_links = get_company_links()
+    company_links = get_company_links_selenium()
+    print(f"Found {len(company_links)} company links")
+
+    if not company_links:
+        print("No company links found. Exiting.")
+        return
 
     #Scrape data for each company
     all_data = []
     for i, link in enumerate(company_links, 1):
-        print(f"\n[{i}/{len(company_links)}]")
+        print(f"\n[{i}/{len(company_links)}] Scraping {link}")
         data = get_company_data(link)
         if data:
             all_data.append(data)
