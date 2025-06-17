@@ -1,19 +1,55 @@
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+import time
 
-# 1. Test URL: One real YC company
-company_url = "https://www.ycombinator.com/companies/clipboard-health"
+COMPANIES_DIR ="https://www.ycombinator.com/companies/"
 
-# 2. Set headers to avoid being blocked
 headers = {
     "User-Agent": "Mozilla/5.0"
 }
 
-# 3. Scraper function
+
+def get_company_links():
+    """Uses Selenium to scrape first 100 company links from Y Combinator"""
+    company_links = []
+
+    options = Options()
+    options.add_argument("--headless")  # Run in background
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+
+    driver = webdriver.Chrome(options=options)
+    driver.get("https://www.ycombinator.com/companies")
+
+    time.sleep(5)  # Wait for JavaScript to load
+    
+    # Find all <a> tags linking to company profiles
+    anchors = driver.find_elements(By.CSS_SELECTOR, "a[href^='/companies/']") 
+
+    
+    for a in anchors:
+        href = a.get_attribute("href")
+      
+        if href and href not in company_links:
+            company_links.append(href)
+        if len(company_links) >= 100:
+            break
+
+        
+    driver.quit()
+    print(f"✅ Collected {len(company_links)} company links.")
+    return company_links
+
+
+
 def get_company_data(link):
     import re
-    """Extracts details from YC company page with debug output."""
+    from bs4 import BeautifulSoup
+    
     try:
         print(f"🔍 Scraping: {link}")
         res = requests.get(link, headers=headers)
@@ -37,7 +73,7 @@ def get_company_data(link):
         meta = soup.find("meta", attrs={"name": "description"})
         description = meta["content"] if meta else ""
 
-        # Founders & LinkedIn URLs
+        # Founders & Company LinkedIn URLs
         founders = []
         company_linkedin_url = ""
         for a in soup.find_all("a", href=True):
@@ -49,6 +85,7 @@ def get_company_data(link):
             elif "linkedin.com/company/" in href and not company_linkedin_url:
                 company_linkedin_url = href    
 
+        # If no founders found, try to extract from specific divs
         if not founders:
             founder_divs = soup.find_all("div", class_="text-xl font-bold")
             for div in founder_divs:
@@ -70,13 +107,25 @@ def get_company_data(link):
         print(f"❌ Error scraping {link}: {e}")
         return {}
 
-# 4. Scrape the test company
-company_data = get_company_data(company_url)
+def main():
+    #Get all company links
+    company_links = get_company_links()
 
-# 5. Save to CSV
-if company_data:
-    df = pd.DataFrame([company_data])  # Wrap the dictionary in a list
-    df.to_csv("yc_startups.csv", index=False)
-    print("✅ Data saved to yc_startups.csv")
-else:
-    print("⚠️ No data to save")
+    #Scrape data for each company
+    all_data = []
+    for i, link in enumerate(company_links, 1):
+        print(f"\n[{i}/{len(company_links)}]")
+        data = get_company_data(link)
+        if data:
+            all_data.append(data)
+        time.sleep(1)  # delay to avoid overload
+
+   
+    #save all data to a CSV file
+    df = pd.DataFrame(all_data)
+    df.to_csv("yc_500_startups.csv", index=False)
+    print("\n All Data saved to yc_500_startups.csv")
+
+
+if __name__ == "__main__":
+    main()
