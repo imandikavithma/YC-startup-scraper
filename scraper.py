@@ -1,26 +1,82 @@
+import requests
+from bs4 import BeautifulSoup
 import pandas as pd
 
-data = [
-    {"Company Name": "DoorDash",
-     "Batch": "Summer 2013",
-     "Description": "Founded in 2013, DoorDash is a San Francisco-based technology company passionate about transforming local businesses and dedicated to enabling new ways of working, earning, and living. Today, DoorDash connects customers with their favorite local and national restaurants in more than 600 cities across the United States and Canada. By building intelligent, last-mile delivery technology for local cities, DoorDash aims to connect people with the things they care about — one dash at a time.",
-     "Founders": "Andy Fang, Stanley Tang, Tony Xu",
-     "LinkedIn URLs": "https://www.linkedin.com/company/doordash/",
-     "Company URLs": "http://doordash.com/"
-     },
-    {"Company Name": "Airbnb",
-     "Batch": "Winter 2009",
-     "Description": "Founded in August of 2008 and based in San Francisco, California, Airbnb is a trusted community marketplace for people to list, discover, and book unique accommodations around the world — online or from a mobile phone. Whether an apartment for a night, a castle for a week, or a villa for a month, Airbnb connects people to unique travel experiences, at any price point, in more than 33,000 cities and 192 countries. And with world-class customer service and a growing community of users, Airbnb is the easiest way for people to monetize their extra space and showcase it to an audience of millions. No global movement springs from individuals. It takes an entire team united behind something big. Together, we work hard, we laugh a lot, we brainstorm nonstop, we use hundreds of Post-Its a week, and we give the best high-fives in town. Headquartered in San Francisco, we have satellite offices in Dublin, London, Barcelona, Paris, Milan, Copenhagen, Berlin, Moscow, São Paolo, Sydney, and Singapore.Active Founders",
-     "Founders": "Nathan Blecharczyk, Joe Gebbia, Brian Chesky",
-     "LinkedIn URLs": "https://www.linkedin.com/company/airbnb/",
-     "Company URLs": "http://airbnb.com/"
-     },
-]
+# 1. Test URL: One real YC company
+company_url = "https://www.ycombinator.com/companies/clipboard-health"
 
-# Convert list to DataFrame
-df = pd.DataFrame(data)
+# 2. Set headers to avoid being blocked
+headers = {
+    "User-Agent": "Mozilla/5.0"
+}
 
-# Save DataFrame to CSV
-df.to_csv('startups_data.csv', index=False) 
+# 3. Scraper function
+def get_company_data(link):
+    import re
+    """Extracts details from YC company page with debug output."""
+    try:
+        print(f"🔍 Scraping: {link}")
+        res = requests.get(link, headers=headers)
 
-print("CSV file created successfully!")
+        if res.status_code != 200:
+            print(f"❌ Failed to fetch page. Status code: {res.status_code}")
+            return {}
+
+        soup = BeautifulSoup(res.text, "html.parser")
+
+        # Company Name
+        name_tag = soup.find("h1")
+        name = name_tag.text.strip() if name_tag else ""
+
+        # Batch
+        all_text = soup.get_text(separator="\n")
+        batch_match = re.search(r"Batch:\s*(.*)", all_text)
+        batch = batch_match.group(1).strip() if batch_match else ""
+
+        # Description (from meta tag)
+        meta = soup.find("meta", attrs={"name": "description"})
+        description = meta["content"] if meta else ""
+
+        # Founders & LinkedIn URLs
+        founders = []
+        company_linkedin_url = ""
+        for a in soup.find_all("a", href=True):
+            href = a["href"]
+            if "linkedin.com/in" in href:
+                Fname = a.text.strip()
+                if Fname:
+                    founders.append(Fname)
+            elif "linkedin.com/company/" in href and not company_linkedin_url:
+                company_linkedin_url = href    
+
+        if not founders:
+            founder_divs = soup.find_all("div", class_="text-xl font-bold")
+            for div in founder_divs:
+                name = div.text.strip()
+                if name != name_tag.text.strip():  # avoid duplicating company name
+                    founders.append(name)
+
+        # Return data as a dictionary
+        return {
+            "Company Name": name,
+            "Batch": batch,
+            "Description": description,
+            "Founders": ", ".join(founders),
+            "LinkedIn URLs": company_linkedin_url,
+            "Company URLs": link
+        }
+
+    except Exception as e:
+        print(f"❌ Error scraping {link}: {e}")
+        return {}
+
+# 4. Scrape the test company
+company_data = get_company_data(company_url)
+
+# 5. Save to CSV
+if company_data:
+    df = pd.DataFrame([company_data])  # Wrap the dictionary in a list
+    df.to_csv("yc_startups.csv", index=False)
+    print("✅ Data saved to yc_startups.csv")
+else:
+    print("⚠️ No data to save")
